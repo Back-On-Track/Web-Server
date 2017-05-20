@@ -18,6 +18,8 @@ urlpatterns = patterns('',
     (r'^admin/', include(admin.site.urls)),
 
     # Hello, world!
+    (r'^getchart', 'helloworld.views.getchart'),
+    (r'^chart', 'helloworld.views.chart'),
     (r'', 'helloworld.views.index'),
 )
 

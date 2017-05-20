@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
 from django.http import HttpResponse
+import tinyurl
+import jinja2
+import os
 import requests
 import re
 import json
+import random
+import string
+import datetime
 
 def find_nth(haystack, needle, n):
     start = haystack.find(needle)
@@ -37,6 +43,7 @@ def index(request):
     username = request.GET.get('username')
     password = request.GET.get('password')
     termCode = '201703'
+    termName = 'Spring 2017'
 
     params = (
         ('service', 'https://my.ucdavis.edu/schedulebuilder/index.cfm?sb'),
@@ -79,7 +86,13 @@ def index(request):
       crns.append(line[line.index('.t')+2:line.index('.R')])
     print crns
     #CourseDetails.t69943.REGISTRATION_STATUS = "Registered";
-    courses = {}
+    courses = {
+        "courses": {},
+        "quarter": {}
+    }
+    
+    start_date = ''
+    end_date = ''
     for crn in crns:
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -97,19 +110,21 @@ def index(request):
 
         a = s.post('https://my.ucdavis.edu/schedulebuilder/course_search/course_search_results.cfm', headers=headers, data=data)
         a = a.text
-
+        # print "a=", a
         #############################
 
         b = get_first_query(a)
         data_list = b['QUERY']['DATA']
-        course = {}
+        course = {'classes': {}}
         for data in data_list:
-          course[data[7]] = { #Lecture Discussion
+          course['classes'][data[7]] = { #Lecture Discussion
             'begin_time': data[2],
             'end_time': data[3],
             'week_days': data[16]
           }
-        courses[crn] = course
+          start_date = data[4]
+          end_date = data[5]
+        courses["courses"][crn] = course
         #############################
 
         b = get_main_data(a)
@@ -124,7 +139,171 @@ def index(request):
 
 
 
-
+    courses['quarter'] = {
+        'title': termName,
+        'start_date': start_date,
+        'end_date': end_date
+    }
     retString = json.dumps(courses)
 
     return HttpResponse(retString)
+
+
+def render(tpl_path, context):
+    path, filename = os.path.split(tpl_path)
+    return jinja2.Environment(
+        loader=jinja2.FileSystemLoader(path or './')
+    ).get_template(filename).render(context)
+
+def getchart(request):
+    filename = request.GET.get('filename')
+    filename = 'helloworld/'+filename+'.html'
+    print 'filename='+filename
+    data = None
+    with open(filename, 'r') as myfile:
+        data=myfile.read().replace('\n', '')
+    return HttpResponse(data)
+
+def chart(request):
+    print "hi there"
+    # print request.body
+    quarters = json.loads(request.body)["quarters"]
+    print "got quarters"
+    the_quarter = None
+    for quarter in quarters:
+        if quarter["current"]:
+            the_quarter = quarter
+            break
+    print "found current quarter"
+
+    courses = the_quarter['courses']
+
+    ################################
+    ################################
+    ################################
+    ##########BEGIN PIE CHART#######
+    STUDY, HOMEWORK, PROJECT, LAB, OTHER = 0, 0, 0, 0, 0
+    for course in courses:
+        events = course["events"]
+        for event in events:
+            if event["type"] == 0: STUDY += event["durationStudied"]
+            if event["type"] == 1: HOMEWORK += event["durationStudied"]
+            if event["type"] == 2: PROJECT += event["durationStudied"]
+            if event["type"] == 3: LAB += event["durationStudied"]
+            if event["type"] == 4: OTHER += event["durationStudied"]
+    print "FINISH PIE CHART"
+    ##########FINISH PIE CHART######
+    ################################
+    ################################
+    ################################
+    
+
+
+    ################################
+    ################################
+    ################################
+    ############BEGIN LINE CHART####
+    print "BEGIN LINE CHART"
+
+    # get all course events dates
+    allevents = {} # date: durationStudied
+    for course in courses:
+        for event in course["events"]:
+            if event["type"] <= 4:
+                if allevents.has_key(event["date"]):
+                    value = allevents[event["date"]]
+                    allevents[event["date"]] = (value[0] + event["durationStudied"], value[1] + event["duration"])
+                else:
+                    allevents[event["date"]] = (event["durationStudied"], event["duration"])
+    sorteddatekeys = allevents.keys()
+    if len(sorteddatekeys) == 0:
+        LINECHART_DATA = []
+    else:
+        sorteddatekeys.sort(key=lambda x: datetime.datetime.strptime(x, '%m-%d-%Y'))
+
+        #loop from min to max key and consolidate duplicates
+        mindate = datetime.datetime.strptime(sorteddatekeys[0], '%m-%d-%Y')
+        maxdate = datetime.datetime.strptime(sorteddatekeys[-1], '%m-%d-%Y')
+        day_count = (maxdate - mindate).days + 1
+        for single_date in (mindate + datetime.timedelta(n) for n in range(day_count)):
+            datestr = single_date.strftime("%m-%d-%Y")
+            if not allevents.has_key(datestr):
+                allevents[datestr] = (0, 0)
+
+        #4- convert dictionary to array in sorted order
+        sorteddatekeys = allevents.keys() # no duplicates now
+        sorteddatekeys.sort(key=lambda x: datetime.datetime.strptime(x, '%m-%d-%Y'))
+        LINECHART_DATA = []
+        for date in sorteddatekeys:
+            value = allevents[date][0]
+            LINECHART_DATA.append({
+                'date': date,
+                'value': value
+            })
+    
+    print "FINISH LINE CHART"
+    ##########FINISH LINE CHART#####
+    ################################
+    ################################
+    ################################
+
+    ################################
+    ################################
+    ################################
+    ############BEGIN BAR CHART#####
+
+    
+
+    BARCHART_DATA = []
+    if len(sorteddatekeys) == 0:
+        BARCHART_DATA = []
+    else:
+        for date in sorteddatekeys:
+            studied = allevents[date][0]
+            planned = allevents[date][1]
+            # { Date: "2016-06-14", Categories: [{ Name: "Planned", Value: 321 }, { Name: "Studied", Value: 524 }] }
+            BARCHART_DATA.append({ 
+                'Date': date[:date.rfind('-')],
+                'Categories': [
+                    {'Name': 'Planned', 'Value': planned},
+                    {'Name': 'Studied', 'Value': studied},
+                ]
+            })
+
+    # BARCHART_DATA_without_year = []
+    # for date in sorteddatekeys:
+    #     BARCHART_DATA_without_year[i]
+
+    ################################
+    ################################
+    ################################
+
+
+    ##########RENDER
+    context = {
+        "STUDY": STUDY,
+        "HOMEWORK": HOMEWORK,
+        "PROJECT": PROJECT,
+        "LAB": LAB,
+        "OTHER": OTHER,
+
+
+        "LINECHART_DATA": json.dumps(LINECHART_DATA),
+
+        "BARCHART_DATA": json.dumps(BARCHART_DATA)
+    }
+
+    result = render('/root/helloworld/helloworld/chart.html', context)
+
+
+
+    N=10
+    filename = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(N))
+    with open('helloworld/'+filename+'.html', 'w') as f:
+        f.write(result)
+
+    response = json.dumps({
+        'url': tinyurl.create_one('http://192.241.206.161/getchart?filename='+filename)
+    })
+    print 'DONE FUNCTION, response='+response
+    return HttpResponse(response)
