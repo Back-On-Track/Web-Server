@@ -120,6 +120,8 @@ def index(request):
           course['classes'][data[7]] = { #Lecture Discussion
             'begin_time': data[2],
             'end_time': data[3],
+            'start_date': data[4],
+            'end_date': data[5],
             'week_days': data[16]
           }
           start_date = data[4]
@@ -128,7 +130,7 @@ def index(request):
         #############################
 
         b = get_main_data(a)
-        course["identifier"] = b['Results']['DATA'][0][3]
+        course["identifier"] = b['Results']['DATA'][0][22] + ' ' + b['Results']['DATA'][0][3] # e.g: ECS + ' ' + 175
         course["title"] = b['Results']['DATA'][0][24]
         course["units"] = b['Results']['DATA'][0][7]
         #############################
@@ -165,16 +167,12 @@ def getchart(request):
     return HttpResponse(data)
 
 def chart(request):
-    print "hi there"
-    # print request.body
     quarters = json.loads(request.body)["quarters"]
-    print "got quarters"
     the_quarter = None
     for quarter in quarters:
         if quarter["current"]:
             the_quarter = quarter
             break
-    print "found current quarter"
 
     courses = the_quarter['courses']
 
