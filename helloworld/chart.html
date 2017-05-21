@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script type="text/javascript" src="https://pastebin.com/raw/bbf2yxDk"></script>
+    <!-- d3v2 -->
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/d3/4.7.2/d3.min.js"></script>
+    <script src="https://d3js.org/d3-time.v1.min.js"></script>
+    <script src="https://pastebin.com/raw/v5YLT2Jc"></script>
+    <!-- barchart -->
+    <script src="http://pastebin.com/raw/9paFec52"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <!-- jQuery library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <!-- Latest compiled JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <style>
+        #me path {
+            fill: none;
+            stroke: black;
+        }
+        #me svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #me svg .data-point {
+            stroke: blue;
+            stroke-width: 1.5px;
+            fill: blue;
+        }
+        #me svg .data-point-text {
+            font-family: sans-serif;
+            font-size: 11px;
+            fill: red;
+        }
+        #me svg .axis path,
+        #me svg .axis line {
+            fill: none;
+            stroke: black;
+        }
+        #me svg .axis text {
+            font-family: sans-serif;
+            font-size: 11px;
+        }
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #000;
+            shape-rendering: crispEdges;
+        }
+        .bar {
+            fill: steelblue;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-default">
+        <div class="container-fluid">
+            <div class="navbar-header"> <a class="navbar-brand" href="#">BackOnTrak</a> 
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="page-header">
+            <h1>BackOnTrak Data</h1> 
+        </div>
+        <div id="pieChart"></div>
+        <mylinechart id="me"></mylinechart>
+        <mybarchart id="barchart">
+    </div>
+    </div>
+    <!-- pie chart -->
+    <script>
+        var pie = new d3pie("pieChart", {
+            "header": {
+                "title": {
+                    "text": "Course Study Time",
+                    "fontSize": 22,
+                    "font": "verdana"
+                },
+                "subtitle": {
+                    "text": "How your time was organized between different study times.",
+                    "color": "#999999",
+                    "fontSize": 10,
+                    "font": "verdana"
+                },
+                "titleSubtitlePadding": 12
+            },
+            "footer": {
+                "text": "Source: BackOnTrak iOS App",
+                "color": "#999999",
+                "fontSize": 11,
+                "font": "open sans",
+                "location": "bottom-center"
+            },
+            "size": {
+                "canvasHeight": 400,
+                "canvasWidth": 590,
+                "pieOuterRadius": "88%"
+            },
+            "data": {
+                "content": [{
+                    "label": "Studying",
+                    "value": {{ STUDY }},
+                    "color": "#7e3838"
+                }, {
+                    "label": "Homework",
+                    "value": {{ HOMEWORK }} ,
+                    "color": "#7e6538"
+                }, {
+                    "label": "Project",
+                    "value": {{ PROJECT }},
+                    "color": "#7c7e38"
+                }, {
+                    "label": "Lab",
+                    "value": {{ LAB }},
+                    "color": "#587e38"
+                }, {
+                    "label": "Other",
+                    "value": {{ OTHER }},
+                    "color": "#387e45"
+                }]
+            },
+            "labels": {
+                "outer": {
+                    "pieDistance": 32
+                },
+                "inner": {
+                    "format": "percentage"
+                },
+                "mainLabel": {
+                    "font": "verdana"
+                },
+                "percentage": {
+                    "color": "#e1e1e1",
+                    "font": "verdana",
+                    "decimalPlaces": 0
+                },
+                "value": {
+                    "color": "#e1e1e1",
+                    "font": "verdana"
+                },
+                "lines": {
+                    "enabled": true,
+                    "color": "#cccccc"
+                },
+                "truncation": {
+                    "enabled": true
+                }
+            },
+            "effects": {
+                "pullOutSegmentOnClick": {
+                    "effect": "linear",
+                    "speed": 400,
+                    "size": 8
+                }
+            }
+        });
+    </script>
+    <!-- line chart -->
+    <script type="text/javascript">
+        var width = 800,
+            height = 300,
+            p = 30,
+            y = d3v2.scale.linear().domain([0, 50]).range([height, 0]),
+            x = d3v2.time.scale().domain([minDate, maxDate]).range([0, width]);
+        var svg = d3v2.select("mylinechart").append("svg:svg").attr("width", width + p * 2).attr("height", height + p * 2).append("svg:g").attr("transform", "translate(" + p + "," + p + ")");
+        var dataset = {{ LINECHART_DATA }};
+        var padding = 50;
+        var minDate = d3v2.min(dataset, function(d) {
+            return new Date(d.date);
+        });
+        minDate.setDate(minDate.getDate() - 1);
+        var maxDate = d3v2.max(dataset, function(d) {
+            return new Date(d.date);
+        });
+        var xScale = d3v2.time.scale().domain([minDate, maxDate]).range([padding, width - padding]);
+        var yScale = d3v2.scale.linear().domain([0, d3v2.max(dataset, function(d) {
+            return d.value;
+        })]).range([height - padding, padding]);
+        var format = d3v2.time.format("%d %b");
+        var xAxis = d3v2.svg.axis().scale(xScale).orient("bottom").tickFormat(format).ticks(d3v2.time.days, 5);
+        svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + height + ")").call(xAxis).selectAll("text").style("text-anchor", "end").attr("dx", "-.8em").attr("dy", ".15em").attr("transform", function(d) {
+            return "rotate(-65)"
+        });
+        var yAxis = d3v2.svg.axis().scale(yScale).orient("left").tickFormat(function(d) {
+            return d;
+        }).tickSize(5, 5, 0).ticks(5);
+        svg.append("g").attr("class", "axis y-axis").attr("transform", "translate(" + padding + ",0)").call(yAxis);
+        var line = d3v2.svg.line().x(function(d) {
+            return xScale(new Date(d.date));
+        }).y(function(d) {
+            return yScale(d.value);
+        });
+        svg.append("svg:path").attr("d", line(dataset));
+        svg.selectAll("circle").data(dataset).enter().append("circle").attr("class", "data-point").attr("cx", function(d) {
+            return xScale(new Date(d.date));
+        }).attr("cy", function(d) {
+            return yScale(d.value);
+        }).attr("r", 5);
+    </script>
+    <script>
+        function getTextWidth(text, fontSize, fontName) {
+            c = document.createElement("canvas");
+            ctx = c.getContext("2d");
+            ctx.font = fontSize + ' ' + fontName;
+            return ctx.measureText(text).width;
+        }
+        var Data = {{ BARCHART_DATA }};
+        var margin = {
+            top: 20,
+            right: 30,
+            bottom: 60,
+            left: 40
+        }, width = 800,
+            height = 550 - margin.top - margin.bottom;
+        var textWidthHolder = 0;
+        var Categories = new Array();
+        var x0 = d3barchart.scale.ordinal().rangeRoundBands([0, width], .1);
+        var x1 = d3barchart.scale.ordinal();
+        var y = d3barchart.scale.linear().range([height, 0]);
+        var color = d3barchart.scale.ordinal().range(["#ff0000", "#000000"]);
+        var xAxis = d3barchart.svg.axis().scale(x0).orient("bottom").ticks(d3barchart.time.days, 2);
+        var yAxis = d3barchart.svg.axis().scale(y).orient("left").tickFormat(d3barchart.format(".2s"));
+        var svg = d3barchart.select("mybarchart").append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        Data.forEach(function(d) {
+            d.Categories.forEach(function(b) {
+                if (Categories.findIndex(function(c) {
+                    return c.Name === b.Name
+                }) == -1) {
+                    b.Type = "bar";
+                    Categories.push(b);
+                }
+            })
+        });
+        x0.domain(Data.map(function(d) {
+            return d.Date;
+        }));
+        x1.domain(Categories.filter(function(d) {
+            return d.Type == "bar"
+        }).map(function(d) {
+            return d.Name
+        })).rangeRoundBands([0, x0.rangeBand()]);
+        y.domain([0, d3barchart.max(Data, function(d) {
+            return d3barchart.max(d.Categories, function(d) {
+                return d.Value;
+            });
+        })]);
+        svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + height + ")").call(xAxis).selectAll("text").style("text-anchor", "end").attr("dx", "-.8em").attr("dy", "-.55em").attr("transform", "rotate(-65)");
+        svg.append("g").attr("class", "y axis").call(yAxis).append("text").attr("transform", "rotate(-90)").attr("y", 6).attr("dy", ".71em").style("text-anchor", "end").text("Minutes");
+        var state = svg.selectAll(".state").data(Data).enter().append("g").attr("class", "state").attr("transform", function(d) {
+            return "translate(" + x0(d.Date) + ",0)";
+        });
+        state.selectAll("rect").data(function(d) {
+            return d.Categories;
+        }).enter().append("rect").attr("width", x1.rangeBand()).attr("x", function(d) {
+            return x1(d.Name);
+        }).attr("y", function(d) {
+            return y(d.Value);
+        }).style("fill", function(d) {
+            return color(d.Name);
+        }).transition().delay(500).attrTween("height", function(d) {
+            var i = d3barchart.interpolate(0, height - y(d.Value));
+            return function(t) {
+                return i(t);
+            }
+        });
+        var LegendHolder = svg.append("g").attr("class", "legendHolder");
+        var legend = LegendHolder.selectAll(".legend").data(Categories.map(function(d) {
+            return {
+                "Name": d.Name,
+                "Type": d.Type
+            }
+        })).enter().append("g").attr("class", "legend").attr("transform", function(d, i) {
+            return "translate(5," + (-15) + ")";
+        }).each(function(d, i) {
+            d3barchart.select(this).append("rect").attr("width", function() {
+                return 18
+            }).attr("x", function(b) {
+                left = (i + 1) * 15 + i * 18 + i * 5 + textWidthHolder;
+                return left;
+            }).attr("y", function(b) {
+                return 0;
+            }).attr("height", function(b) {
+                return 18;
+            }).style("fill", function(b) {
+                return color(d.Name);
+            });
+            d3barchart.select(this).append("text").attr("x", function(b) {
+                left = (i + 1) * 15 + (i + 1) * 18 + (i + 1) * 5 + textWidthHolder;
+                return left;
+            }).attr("y", 9).attr("dy", ".35em").style("text-anchor", "start").text(d.Name);
+            textWidthHolder += getTextWidth(d.Name, "10px", "calibri");
+        });
+        d3barchart.select(".legendHolder").attr("transform", function(d) {
+            thisWidth = d3barchart.select(this).node().getBBox().width;
+            return "translate(" + ((width) / 2 - thisWidth / 2) + ",0)";
+        })
+    </script>
+</body>
+
+</html>
