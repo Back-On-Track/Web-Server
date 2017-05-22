@@ -9,7 +9,10 @@ import json
 import random
 import string
 import datetime
+from pymongo import MongoClient
 
+
+########### helper functions for get_schedule
 def find_nth(haystack, needle, n):
     start = haystack.find(needle)
     while start >= 0 and n > 1:
@@ -35,10 +38,12 @@ def get_second_query(json_string):
 
 def get_main_data(json_string):
     b = json_string[:json_string.find(',"{\\"QUERY')]+"]]}}"
-
     return json.loads(b)
 
-def index(request):
+#############
+
+# route for getting schedule with all classes for the current quarter
+def get_schedule(request):
     s = requests.Session()
     username = request.GET.get('username')
     password = request.GET.get('password')
@@ -151,13 +156,15 @@ def index(request):
     return HttpResponse(retString)
 
 
+# function for rendering jinja2 templates
 def render(tpl_path, context):
     path, filename = os.path.split(tpl_path)
     return jinja2.Environment(
         loader=jinja2.FileSystemLoader(path or './')
     ).get_template(filename).render(context)
 
-def getchart(request):
+# route for retrieving charts, simply reads html files and serves it
+def get_chart(request):
     filename = request.GET.get('filename')
     filename = 'helloworld/'+filename+'.html'
     print 'filename='+filename
@@ -166,7 +173,21 @@ def getchart(request):
         data=myfile.read().replace('\n', '')
     return HttpResponse(data)
 
-def chart(request):
+# route for exporting data to database
+def export_data(request):
+    client = MongoClient('mongodb://backontrack:1234567890aA@ds149481.mlab.com:49481/backontrack')
+    db = client.backontrack
+    collection = db.all_users
+    userData = {
+        request.GET.get('UID'): json.loads(request.body)
+    }
+    collection.insert_one(userData)
+
+    return HttpResponse({"success": True})
+
+
+# route for exporting data and saving it as an html file with the charts
+def export_for_chart(request):
     quarters = json.loads(request.body)["quarters"]
     the_quarter = None
     for quarter in quarters:
@@ -276,7 +297,6 @@ def chart(request):
     ################################
     ################################
 
-
     ##########RENDER
     context = {
         "STUDY": STUDY,
@@ -285,14 +305,12 @@ def chart(request):
         "LAB": LAB,
         "OTHER": OTHER,
 
-
         "LINECHART_DATA": json.dumps(LINECHART_DATA),
 
         "BARCHART_DATA": json.dumps(BARCHART_DATA)
     }
 
     result = render('/root/helloworld/helloworld/chart.html', context)
-
 
 
     N=10

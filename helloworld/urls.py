@@ -19,7 +19,8 @@ urlpatterns = patterns('',
 
     # Hello, world!
     (r'^getchart', 'helloworld.views.getchart'),
-    (r'^chart', 'helloworld.views.chart'),
+    (r'^export_data', 'helloworld.views.export_data'),
+    (r'^export_for_chart', 'helloworld.views.export_for_chart'),
     (r'', 'helloworld.views.index'),
 )
 
