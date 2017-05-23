@@ -175,14 +175,19 @@ def get_chart(request):
 
 # route for exporting data to database
 def export_data(request):
+    print '1'
     client = MongoClient('mongodb://backontrack:1234567890aA@ds149481.mlab.com:49481/backontrack')
     db = client.backontrack
     collection = db.all_users
+    print '2'
+    UID = request.GET.get('UID')
     userData = {
-        request.GET.get('UID'): json.loads(request.body)
+        "UID": UID,
+        "data": json.loads(request.body)
     }
-    collection.insert_one(userData)
-
+    print '3'
+    collection.update({"UID": UID}, userData, upsert=True)
+    print '4'
     return HttpResponse({"success": True})
 
 
@@ -310,12 +315,12 @@ def export_for_chart(request):
         "BARCHART_DATA": json.dumps(BARCHART_DATA)
     }
 
-    result = render('/root/helloworld/helloworld/chart.html', context)
+    result = render('/root/helloworld/backontrack/chart.j2', context)
 
 
     N=10
     filename = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(N))
-    with open('helloworld/'+filename+'.html', 'w') as f:
+    with open('backontrack/'+filename+'.html', 'w') as f:
         f.write(result)
 
     response = json.dumps({

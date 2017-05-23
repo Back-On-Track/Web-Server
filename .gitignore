@@ -9,3 +9,4 @@ build/
 dist/
 helloworld.db
 local_settings.py
+sftp-config.json
