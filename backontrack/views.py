@@ -200,8 +200,8 @@ def get_schedule(request):
 # route for retrieving charts, simply reads html files and serves it
 def get_chart(request):
     filename = request.GET.get('filename')
-    filename = 'helloworld/'+filename+'.html'
-    print 'filename='+filename
+    filename = os.path.join(os.path.dirname(__file__), filename+".html")
+
     data = None
     with open(filename, 'r') as myfile:
         data=myfile.read().replace('\n', '')
@@ -242,7 +242,7 @@ def export_for_chart(request):
     courses = the_quarter['courses']
     filename = render_charts_to_file(courses)
     response = {
-        'url': tinyurl.create_one('http://192.241.206.161/getchart?filename='+filename)
+        'url': tinyurl.create_one('http://192.241.206.161/get_chart?filename='+filename)
     }
     return HttpResponse(json.dumps(response))
 

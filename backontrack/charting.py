@@ -22,7 +22,6 @@ def get_charts_data(courses):
 
     ################################
     ############BEGIN LINE CHART####
-
     # get all course events dates
     all_events = {} # date: durationStudied
     for course in courses:
@@ -34,10 +33,9 @@ def get_charts_data(courses):
                 else:
                     all_events[event["date"]] = (event["durationStudied"], event["duration"])
 
-    
+    sorted_date_keys = all_events.keys()
     line_chart_data = []
     if len(all_events) != 0:
-        sorted_date_keys = all_events.keys()
         sorted_date_keys.sort(key=lambda x: datetime.datetime.strptime(x, '%m-%d-%Y'))
 
         #loop from min to max key and consolidate duplicates
@@ -62,7 +60,6 @@ def get_charts_data(courses):
     
     ##########FINISH LINE CHART#####
     ################################
-
     ################################
     ############BEGIN BAR CHART#####
 
@@ -79,7 +76,6 @@ def get_charts_data(courses):
                     {'Name': 'Studied', 'Value': studied},
                 ]
             })
-
     ################################
     ################################
     ################################
