@@ -8,8 +8,8 @@ import re
 import json
 import random
 import string
-import datetime
 from pymongo import MongoClient
+from charting import get_charts_data
 
 
 ########### helper functions for get_schedule
@@ -39,8 +39,49 @@ def get_second_query(json_string):
 def get_main_data(json_string):
     b = json_string[:json_string.find(',"{\\"QUERY')]+"]]}}"
     return json.loads(b)
-
 #############
+
+# function for rendering jinja2 templates
+def render(tpl_path, context):
+    path, filename = os.path.split(tpl_path)
+    return jinja2.Environment(
+        loader=jinja2.FileSystemLoader(path or './')
+    ).get_template(filename).render(context)
+
+def render_charts(courses):
+    ALL_DURATIONSTUDIED_TYPES, LINECHART_DATA, BARCHART_DATA = get_charts_data(courses)
+
+    context = {
+        'ALL_DURATIONSTUDIED_TYPES': ALL_DURATIONSTUDIED_TYPES,
+        "LINECHART_DATA": json.dumps(LINECHART_DATA),
+        "BARCHART_DATA": json.dumps(BARCHART_DATA)
+    }
+
+    html_page = render(os.path.join(os.path.dirname(__file__), 'chart.j2'), context)
+
+    return html_page
+
+def render_courses_page(identifiers):
+    context = {
+        'IDENTIFIERS': identifiers,
+    }
+
+    html_page = render(os.path.join(os.path.dirname(__file__), 'courses.j2'), context)
+
+    return html_page
+
+def render_charts_to_file(courses):
+    html_page = render_charts(courses)
+
+    N=10
+    filename = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(N))
+    with open(os.path.join(os.path.dirname(__file__), filename+'.html'), 'w') as f:
+        f.write(html_page)
+
+    return filename
+
+###############################################################
+#########################START ROUTES##########################
 
 # route for getting schedule with all classes for the current quarter
 def get_schedule(request):
@@ -60,7 +101,8 @@ def get_schedule(request):
     search = 'name="execution" value="'
     x = x[len(search)+x.find(search):]
     execution = x[:x.find('"')]
-    ################################################################################################################################################
+
+    ######################
 
 
 
@@ -155,14 +197,6 @@ def get_schedule(request):
 
     return HttpResponse(retString)
 
-
-# function for rendering jinja2 templates
-def render(tpl_path, context):
-    path, filename = os.path.split(tpl_path)
-    return jinja2.Environment(
-        loader=jinja2.FileSystemLoader(path or './')
-    ).get_template(filename).render(context)
-
 # route for retrieving charts, simply reads html files and serves it
 def get_chart(request):
     filename = request.GET.get('filename')
@@ -178,11 +212,20 @@ def export_data(request):
     client = MongoClient('mongodb://backontrack:1234567890aA@ds149481.mlab.com:49481/backontrack')
     db = client.backontrack
     collection = db.all_users
+
     UID = request.GET.get('UID')
+
+    courses = []
+    quarters = json.loads(request.body)["quarters"]
+
+    for quarter in quarters:
+        courses += quarter["courses"]
+
     userData = {
         "UID": UID,
-        "data": json.loads(request.body)
+        "courses": courses
     }
+    
     collection.update({"UID": UID}, userData, upsert=True)
     return HttpResponse({"success": True})
 
@@ -197,126 +240,58 @@ def export_for_chart(request):
             break
 
     courses = the_quarter['courses']
-
-    ################################
-    ################################
-    ################################
-    ##########BEGIN PIE CHART#######
-    STUDY, HOMEWORK, PROJECT, LAB, OTHER = 0, 0, 0, 0, 0
-    for course in courses:
-        events = course["events"]
-        for event in events:
-            if event["type"] == 0: STUDY += event["durationStudied"]
-            if event["type"] == 1: HOMEWORK += event["durationStudied"]
-            if event["type"] == 2: PROJECT += event["durationStudied"]
-            if event["type"] == 3: LAB += event["durationStudied"]
-            if event["type"] == 4: OTHER += event["durationStudied"]
-    print "FINISH PIE CHART"
-    ##########FINISH PIE CHART######
-    ################################
-    ################################
-    ################################
-    
-
-
-    ################################
-    ################################
-    ################################
-    ############BEGIN LINE CHART####
-    print "BEGIN LINE CHART"
-
-    # get all course events dates
-    allevents = {} # date: durationStudied
-    for course in courses:
-        for event in course["events"]:
-            if event["type"] <= 4:
-                if allevents.has_key(event["date"]):
-                    value = allevents[event["date"]]
-                    allevents[event["date"]] = (value[0] + event["durationStudied"], value[1] + event["duration"])
-                else:
-                    allevents[event["date"]] = (event["durationStudied"], event["duration"])
-    sorteddatekeys = allevents.keys()
-    if len(sorteddatekeys) == 0:
-        LINECHART_DATA = []
-    else:
-        sorteddatekeys.sort(key=lambda x: datetime.datetime.strptime(x, '%m-%d-%Y'))
-
-        #loop from min to max key and consolidate duplicates
-        mindate = datetime.datetime.strptime(sorteddatekeys[0], '%m-%d-%Y')
-        maxdate = datetime.datetime.strptime(sorteddatekeys[-1], '%m-%d-%Y')
-        day_count = (maxdate - mindate).days + 1
-        for single_date in (mindate + datetime.timedelta(n) for n in range(day_count)):
-            datestr = single_date.strftime("%m-%d-%Y")
-            if not allevents.has_key(datestr):
-                allevents[datestr] = (0, 0)
-
-        #4- convert dictionary to array in sorted order
-        sorteddatekeys = allevents.keys() # no duplicates now
-        sorteddatekeys.sort(key=lambda x: datetime.datetime.strptime(x, '%m-%d-%Y'))
-        LINECHART_DATA = []
-        for date in sorteddatekeys:
-            value = allevents[date][0]
-            LINECHART_DATA.append({
-                'date': date,
-                'value': value
-            })
-    
-    print "FINISH LINE CHART"
-    ##########FINISH LINE CHART#####
-    ################################
-    ################################
-    ################################
-
-    ################################
-    ################################
-    ################################
-    ############BEGIN BAR CHART#####
-
-    
-
-    BARCHART_DATA = []
-    if len(sorteddatekeys) == 0:
-        BARCHART_DATA = []
-    else:
-        for date in sorteddatekeys:
-            studied = allevents[date][0]
-            planned = allevents[date][1]
-            # { Date: "2016-06-14", Categories: [{ Name: "Planned", Value: 321 }, { Name: "Studied", Value: 524 }] }
-            BARCHART_DATA.append({ 
-                'Date': date[:date.rfind('-')],
-                'Categories': [
-                    {'Name': 'Planned', 'Value': planned},
-                    {'Name': 'Studied', 'Value': studied},
-                ]
-            })
-
-    ################################
-    ################################
-    ################################
-
-    ##########RENDER
-    context = {
-        "STUDY": STUDY,
-        "HOMEWORK": HOMEWORK,
-        "PROJECT": PROJECT,
-        "LAB": LAB,
-        "OTHER": OTHER,
-
-        "LINECHART_DATA": json.dumps(LINECHART_DATA),
-
-        "BARCHART_DATA": json.dumps(BARCHART_DATA)
-    }
-
-    result = render(os.path.join(os.path.dirname(__file__), 'chart.j2'), context)
-
-
-    N=10
-    filename = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(N))
-    with open(os.path.join(os.path.dirname(__file__), filename+'.html'), 'w') as f:
-        f.write(result)
-
-    response = json.dumps({
+    filename = render_charts_to_file(courses)
+    response = {
         'url': tinyurl.create_one('http://192.241.206.161/getchart?filename='+filename)
-    })
-    print 'DONE FUNCTION, response='+response
-    return HttpResponse(response)
+    }
+    return HttpResponse(json.dumps(response))
+
+def course_charts(request):
+    course_identifier = request.GET.get('identifier')
+
+    client = MongoClient('mongodb://backontrack:1234567890aA@ds149481.mlab.com:49481/backontrack')
+    db = client.backontrack
+    collection = db.all_users
+    
+    sum_of_all_events_dict = {}
+    users_cursor = collection.find({'courses': {'$elemMatch': {'identifier': course_identifier}}})
+    length = users_cursor.count()
+    for user in users_cursor:
+        user_courses = user["courses"]
+        for course in user_courses:
+            if course["identifier"] != course_identifier: continue
+
+            for event in course["events"]:
+                if sum_of_all_events_dict.has_key(event["date"]):
+                    sum_of_all_events_dict[event["date"]]["durationStudied"] += event["durationStudied"]
+                    sum_of_all_events_dict[event["date"]]["duration"] += event["duration"]
+                else:
+                    sum_of_all_events_dict[event["date"]] = event.copy()
+
+
+    avg_of_all_events_array = []
+    ## divide by length
+    for date in sum_of_all_events_dict.keys():
+        avg_of_all_events_array.append(sum_of_all_events_dict[date])
+        avg_of_all_events_array[-1]["duration"] /= length
+        avg_of_all_events_array[-1]["durationStudied"] /= length
+
+    ## create array
+    
+    html_page = render_charts([{"events": avg_of_all_events_array}]) # 1 course object
+
+    return HttpResponse(html_page)
+
+def index(request):
+    client = MongoClient('mongodb://backontrack:1234567890aA@ds149481.mlab.com:49481/backontrack')
+    db = client.backontrack
+    collection = db.all_users
+    users_cursor = collection.find({})
+
+    all_identifiers = {}
+    for user in users_cursor:
+        for course in user["courses"]:
+            all_identifiers[course["identifier"]] = True
+
+
+    return HttpResponse(render_courses_page(all_identifiers.keys()))
