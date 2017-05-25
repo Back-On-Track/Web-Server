@@ -8,8 +8,8 @@ import re
 import json
 import random
 import string
-from pymongo import MongoClient
 from charting import get_charts_data
+from database_helpers import get_users_collection
 
 
 ########### helper functions for get_schedule
@@ -58,15 +58,6 @@ def render_charts(courses):
     }
 
     html_page = render(os.path.join(os.path.dirname(__file__), 'chart.j2'), context)
-
-    return html_page
-
-def render_courses_page(identifiers):
-    context = {
-        'IDENTIFIERS': identifiers,
-    }
-
-    html_page = render(os.path.join(os.path.dirname(__file__), 'courses.j2'), context)
 
     return html_page
 
@@ -209,9 +200,7 @@ def get_chart(request):
 
 # route for exporting data to database
 def export_data(request):
-    client = MongoClient('mongodb://backontrack:1234567890aA@ds149481.mlab.com:49481/backontrack')
-    db = client.backontrack
-    collection = db.all_users
+    collection = get_users_collection()
 
     UID = request.GET.get('UID')
 
@@ -249,9 +238,7 @@ def export_for_chart(request):
 def course_charts(request):
     course_identifier = request.GET.get('identifier')
 
-    client = MongoClient('mongodb://backontrack:1234567890aA@ds149481.mlab.com:49481/backontrack')
-    db = client.backontrack
-    collection = db.all_users
+    collection = get_users_collection()
     
     sum_of_all_events_dict = {}
     users_cursor = collection.find({'courses': {'$elemMatch': {'identifier': course_identifier}}})
@@ -283,9 +270,7 @@ def course_charts(request):
     return HttpResponse(html_page)
 
 def index(request):
-    client = MongoClient('mongodb://backontrack:1234567890aA@ds149481.mlab.com:49481/backontrack')
-    db = client.backontrack
-    collection = db.all_users
+    collection = get_users_collection()
     users_cursor = collection.find({})
 
     all_identifiers = {}
@@ -293,5 +278,10 @@ def index(request):
         for course in user["courses"]:
             all_identifiers[course["identifier"]] = True
 
+    context = {
+        'IDENTIFIERS': all_identifiers.keys(),
+    }
 
-    return HttpResponse(render_courses_page(all_identifiers.keys()))
+    html_page = render(os.path.join(os.path.dirname(__file__), 'courses.j2'), context)
+
+    return HttpResponse(html_page)
