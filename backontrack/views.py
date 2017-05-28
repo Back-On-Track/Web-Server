@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.http import HttpResponse
 from datetime import datetime, timedelta
+import calendar
 import tinyurl
 import jinja2
 import os
@@ -46,6 +47,24 @@ def add_hours_to_date(dateString, hours):
     date = datetime.strptime(dateString, DATE_FORMAT)
     dateOffsetted = date + timedelta(hours=hours)
     return datetime.strftime(dateOffsetted, DATE_FORMAT)
+
+def get_hours_and_minutes_from_date(dateString):
+    date = datetime.strptime(dateString, DATE_FORMAT)
+    return datetime.strftime(date,"%H%M")
+
+def get_week_day_from_date(dateString):
+    date = datetime.strptime(dateString, DATE_FORMAT).date()
+    day_name = calendar.day_name[date.weekday()]
+    day_name_short_map = {
+        "Monday": "M",
+        "Tuesday": "T",
+        "Wednesday": "W",
+        "Thursday": "R",
+        "Friday": "F",
+        "Saturday": "S",
+        "Sunday": "S"
+    }
+    return day_name_short_map[day_name]
 #############
 
 # function for rendering jinja2 templates
@@ -84,7 +103,7 @@ def render_charts_to_file(courses):
 # route for getting schedule with all classes for the current quarter
 def get_schedule(request):
     s = requests.Session()
-    username = request.GET.get('username')
+    username = request.GET.get('username')    
     password = request.GET.get('password')
     termCode = '201703'
     termName = 'Spring 2017'
@@ -183,11 +202,19 @@ def get_schedule(request):
 
         b = get_main_data(a)
         course["identifier"] = b['Results']['DATA'][0][22] + ' ' + b['Results']['DATA'][0][3] # e.g: ECS + ' ' + 175
-        course["final_start_date"] = b['Results']['DATA'][0][11]
-        if course['final_start_date'] is None:
-            course.pop("final_start_date", None)
-        if course.has_key("final_start_date"):
-            course["final_end_date"] = add_hours_to_date(course['final_start_date'], 2)
+
+        final_start_date = b['Results']['DATA'][0][11]
+        if final_start_date is not None:
+            final_end_date = add_hours_to_date(final_start_date, 2)
+            course['final'] = {
+                'start_date': final_start_date,
+                'end_date': final_end_date,
+                'begin_time': get_hours_and_minutes_from_date(final_start_date),
+                'end_time': get_hours_and_minutes_from_date(final_end_date),
+                'week_days': get_week_day_from_date(final_start_date)
+            }
+            
+
         course["title"] = b['Results']['DATA'][0][24]
         course["units"] = b['Results']['DATA'][0][7]
         #############################
@@ -196,13 +223,14 @@ def get_schedule(request):
         course["instructor"] = b['QUERY']['DATA'][0][1]+' '+b['QUERY']['DATA'][0][2]
         #############################
 
-        if course.has_key("final_start_date"):
-            current_final_date = datetime.strptime(course["final_end_date"], DATE_FORMAT).date()
+        if course.has_key("final"):
+            current_final_date = datetime.strptime(course["final"]["end_date"], DATE_FORMAT).date()
             if current_final_date > quarter_end_date:
                 quarter_end_date = current_final_date
 
-
-
+            course['classes']['Final'] = course['final']
+            course.pop('final', None)
+    # end for crn in crns
 
     courses['quarter'] = {
         'title': termName,
