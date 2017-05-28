@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.http import HttpResponse
+from datetime import datetime, timedelta
 import tinyurl
 import jinja2
 import os
@@ -11,6 +12,7 @@ import string
 from charting import get_charts_data
 from database_helpers import get_users_collection
 
+DATE_FORMAT = "%B, %d %Y %H:%M:%S"
 
 ########### helper functions for get_schedule
 def find_nth(haystack, needle, n):
@@ -39,6 +41,11 @@ def get_second_query(json_string):
 def get_main_data(json_string):
     b = json_string[:json_string.find(',"{\\"QUERY')]+"]]}}"
     return json.loads(b)
+
+def add_hours_to_date(dateString, hours):
+    date = datetime.strptime(dateString, DATE_FORMAT)
+    dateOffsetted = date + timedelta(hours=hours)
+    return datetime.strftime(dateOffsetted, DATE_FORMAT)
 #############
 
 # function for rendering jinja2 templates
@@ -129,8 +136,9 @@ def get_schedule(request):
         "quarter": {}
     }
     
-    start_date = ''
-    end_date = ''
+    quarter_start_date = datetime.strptime("January, 1 2050 00:00:00", DATE_FORMAT).date()
+
+    quarter_end_date = datetime.strptime("January, 1 1990 00:00:00", DATE_FORMAT).date()
     for crn in crns:
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -155,20 +163,31 @@ def get_schedule(request):
         data_list = b['QUERY']['DATA']
         course = {'classes': {}}
         for data in data_list:
-          course['classes'][data[7]] = { #Lecture Discussion
-            'begin_time': data[2],
-            'end_time': data[3],
-            'start_date': data[4],
-            'end_date': data[5],
-            'week_days': data[16]
-          }
-          start_date = data[4]
-          end_date = data[5]
+            course['classes'][data[7]] = { #Lecture Discussion
+                'begin_time': data[2],
+                'end_time': data[3],
+                'start_date': data[4],
+                'end_date': data[5],
+                'week_days': data[16]
+            }
+            current_start_date = datetime.strptime(course['classes'][data[7]]['start_date'], DATE_FORMAT).date()
+            if current_start_date < quarter_start_date:
+                quarter_start_date = current_start_date
+
+            current_end_date = datetime.strptime(course['classes'][data[7]]['end_date'], DATE_FORMAT).date()
+            if current_end_date > quarter_end_date:
+                quarter_end_date = current_end_date
+        # end for
         courses["courses"][crn] = course
         #############################
 
         b = get_main_data(a)
         course["identifier"] = b['Results']['DATA'][0][22] + ' ' + b['Results']['DATA'][0][3] # e.g: ECS + ' ' + 175
+        course["final_start_date"] = b['Results']['DATA'][0][11]
+        if course['final_start_date'] is None:
+            course.pop("final_start_date", None)
+        if course.has_key("final_start_date"):
+            course["final_end_date"] = add_hours_to_date(course['final_start_date'], 2)
         course["title"] = b['Results']['DATA'][0][24]
         course["units"] = b['Results']['DATA'][0][7]
         #############################
@@ -177,15 +196,20 @@ def get_schedule(request):
         course["instructor"] = b['QUERY']['DATA'][0][1]+' '+b['QUERY']['DATA'][0][2]
         #############################
 
+        if course.has_key("final_start_date"):
+            current_final_date = datetime.strptime(course["final_end_date"], DATE_FORMAT).date()
+            if current_final_date > quarter_end_date:
+                quarter_end_date = current_final_date
+
+
 
 
     courses['quarter'] = {
         'title': termName,
-        'start_date': start_date,
-        'end_date': end_date
+        'start_date': datetime.strftime(quarter_start_date, DATE_FORMAT),
+        'end_date': datetime.strftime(quarter_end_date, DATE_FORMAT)
     }
     retString = json.dumps(courses)
-
     return HttpResponse(retString)
 
 # route for retrieving charts, simply reads html files and serves it
