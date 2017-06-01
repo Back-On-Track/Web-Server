@@ -103,8 +103,9 @@ def render_charts_to_file(courses):
 # route for getting schedule with all classes for the current quarter
 def get_schedule(request):
     s = requests.Session()
-    username = request.GET.get('username')    
-    password = request.GET.get('password')
+    username = json.loads(request.body)['username']
+    password = json.loads(request.body)['password']
+
     termCode = '201703'
     termName = 'Spring 2017'
 

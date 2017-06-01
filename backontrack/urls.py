@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls import patterns
+from django.conf.urls import url, include
+from . import views
 
-urlpatterns = patterns('',
-    (r'^get_chart', 'backontrack.views.get_chart'),
-    (r'^export_data', 'backontrack.views.export_data'),
-    (r'^export_for_chart', 'backontrack.views.export_for_chart'),
-    (r'^get_schedule', 'backontrack.views.get_schedule'),
-    (r'^course_charts', 'backontrack.views.course_charts'),
-    (r'', 'backontrack.views.index'),
-)
+
+urlpatterns = [
+    url(r'^get_chart', views.get_chart),
+    url(r'^export_data', views.export_data),
+    url(r'^export_for_chart', views.export_for_chart),
+    url(r'^get_schedule', views.get_schedule),
+    url(r'^course_charts', views.course_charts),
+    url(r'', views.index),
+]
