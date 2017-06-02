@@ -2,19 +2,19 @@
 <html>
 
 <head>
-    <script type="text/javascript" src="https://pastebin.com/raw/bbf2yxDk"></script>
+    <script type="text/javascript" src="//pastebin.com/raw/bbf2yxDk"></script>
     <!-- d3v2 -->
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/d3/4.7.2/d3.min.js"></script>
-    <script src="https://d3js.org/d3-time.v1.min.js"></script>
-    <script src="https://pastebin.com/raw/v5YLT2Jc"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/d3/4.7.2/d3.min.js"></script>
+    <script src="//d3js.org/d3-time.v1.min.js"></script>
+    <script src="//pastebin.com/raw/v5YLT2Jc"></script>
     <!-- barchart -->
-    <script src="http://pastebin.com/raw/9paFec52"></script>
+    <script src="//pastebin.com/raw/9paFec52"></script>
     <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <!-- jQuery library -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <!-- Latest compiled JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <style>
         #me path {
             fill: none;
@@ -170,6 +170,7 @@
         var svg = d3v2.select("mylinechart").append("svg:svg").attr("width", width + p * 2).attr("height", height + p * 2).append("svg:g").attr("transform", "translate(" + p + "," + p + ")");
         var dataset = {{ LINECHART_DATA }};
         var padding = 50;
+
         var minDate = d3v2.min(dataset, function(d) {
             return new Date(d.date);
         });

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ALLOWED_HOSTS = ['*']
 
@@ -12,5 +14,18 @@ ROOT_URLCONF = 'backontrack.urls'
 
 INSTALLED_APPS = (
     'django.contrib.contenttypes',
+    'django.contrib.staticfiles',
     'sslserver'
 )
+
+
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
+
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static")
+]

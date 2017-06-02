@@ -62,7 +62,7 @@ def get_week_day_from_date(dateString):
         "Thursday": "R",
         "Friday": "F",
         "Saturday": "S",
-        "Sunday": "S"
+        "Sunday": "Su"
     }
     return day_name_short_map[day_name]
 #############
@@ -92,7 +92,7 @@ def render_charts_to_file(courses):
 
     N=10
     filename = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(N))
-    with open(os.path.join(os.path.dirname(__file__), filename+'.html'), 'w') as f:
+    with open(os.path.join(os.path.dirname(__file__), '..', 'static', filename+'.html'), 'w') as f:
         f.write(html_page)
 
     return filename
@@ -241,16 +241,6 @@ def get_schedule(request):
     retString = json.dumps(courses)
     return HttpResponse(retString)
 
-# route for retrieving charts, simply reads html files and serves it
-def get_chart(request):
-    filename = request.GET.get('filename')
-    filename = os.path.join(os.path.dirname(__file__), filename+".html")
-
-    data = None
-    with open(filename, 'r') as myfile:
-        data=myfile.read().replace('\n', '')
-    return HttpResponse(data)
-
 # route for exporting data to database
 def export_data(request):
     collection = get_users_collection()
@@ -284,7 +274,7 @@ def export_for_chart(request):
     courses = the_quarter['courses']
     filename = render_charts_to_file(courses)
     response = {
-        'url': tinyurl.create_one('http://192.241.206.161/get_chart?filename='+filename)
+        'url': tinyurl.create_one('https://ibackontrack.com/static/'+filename+'.html')
     }
     return HttpResponse(json.dumps(response))
 
