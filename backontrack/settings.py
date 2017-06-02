@@ -12,4 +12,5 @@ ROOT_URLCONF = 'backontrack.urls'
 
 INSTALLED_APPS = (
     'django.contrib.contenttypes',
+    'sslserver'
 )

@@ -4,3 +4,4 @@ Django==1.9.4
 pymongo
 jinja2
 tinyurl
+django-sslserver
