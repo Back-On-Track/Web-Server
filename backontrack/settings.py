@@ -8,7 +8,10 @@ SECRET_KEY = '0h@p1(0e%*b9r4k+dnpc+7s18lpap6+=cu^#^d=hll+38zv_)r'
 
 MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.security.SecurityMiddleware'
 )
+
+SECURE_HSTS_SECONDS = 30 * 24 * 3600 # 30 days
 
 ROOT_URLCONF = 'backontrack.urls'
 
