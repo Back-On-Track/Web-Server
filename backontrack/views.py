@@ -105,7 +105,7 @@ def get_schedule(request):
     s = requests.Session()
     username = json.loads(request.body)['username']
     password = json.loads(request.body)['password']
-
+    
     termCode = '201703'
     termName = 'Spring 2017'
 
@@ -113,10 +113,8 @@ def get_schedule(request):
         ('service', 'https://my.ucdavis.edu/schedulebuilder/index.cfm?sb'),
     )
 
-    a = s.get('https://cas.ucdavis.edu/cas/login', params=params)
-
-    x = a.text
     search = 'name="execution" value="'
+    x = s.get('https://cas.ucdavis.edu/cas/login', params=params).text
     x = x[len(search)+x.find(search):]
     execution = x[:x.find('"')]
 
@@ -278,11 +276,9 @@ def export_for_chart(request):
     }
     return HttpResponse(json.dumps(response))
 
-def course_charts(request):
-    course_identifier = request.GET.get('identifier')
 
+def get_avg_of_all_events_array_for_course(course_identifier):
     collection = get_users_collection()
-    
     sum_of_all_events_dict = {}
     users_cursor = collection.find({'courses': {'$elemMatch': {'identifier': course_identifier}}})
     length = users_cursor.count()
@@ -306,7 +302,12 @@ def course_charts(request):
         avg_of_all_events_array[-1]["duration"] /= length
         avg_of_all_events_array[-1]["durationStudied"] /= length
 
-    ## create array
+    return avg_of_all_events_array
+
+def course_charts(request):
+    course_identifier = request.GET.get('identifier')
+
+    avg_of_all_events_array = get_avg_of_all_events_array_for_course(course_identifier)
     
     html_page = render_charts([{"events": avg_of_all_events_array}]) # 1 course object
 
@@ -321,8 +322,15 @@ def index(request):
         for course in user["courses"]:
             all_identifiers[course["identifier"]] = True
 
+    # filter out the courses that dont have any events
+    nonEmptyCourseIdentifiers = []
+    for course_identifier in all_identifiers.keys():
+        avg_of_all_events_array = get_avg_of_all_events_array_for_course(course_identifier)
+        totalDurationStudied = sum([x["durationStudied"] for x in avg_of_all_events_array])
+        nonEmptyCourseIdentifiers += [course_identifier] if totalDurationStudied != 0 else []
+
     context = {
-        'IDENTIFIERS': all_identifiers.keys(),
+        'IDENTIFIERS': nonEmptyCourseIdentifiers,
     }
 
     html_page = render(os.path.join(os.path.dirname(__file__), 'courses.j2'), context)
