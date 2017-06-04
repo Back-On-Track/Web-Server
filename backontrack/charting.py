@@ -55,7 +55,7 @@ def get_charts_data(courses):
             value = all_events[date][0]
             line_chart_data.append({
                 'date': date,
-                'value': value
+                'value': value * 60
             })
     
     ##########FINISH LINE CHART#####
@@ -66,12 +66,12 @@ def get_charts_data(courses):
     bar_chart_data = []
     if len(sorted_date_keys) != 0:
         for date in sorted_date_keys:
-            studied = all_events[date][0]
-            planned = all_events[date][1]
+            studied = all_events[date][0] * 60
+            planned = all_events[date][1] * 60
             # { Date: "2016-06-14", Categories: [{ Name: "Planned", Value: 321 }, { Name: "Studied", Value: 524 }] }
             bar_chart_data.append({ 
-                'Date': date[:date.rfind('-')],
-                'Categories': [
+                'date': date,
+                'categories': [
                     {'Name': 'Planned', 'Value': planned},
                     {'Name': 'Studied', 'Value': studied},
                 ]

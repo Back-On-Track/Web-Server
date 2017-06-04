@@ -87,6 +87,43 @@ def render_charts(courses):
 
     return html_page
 
+def render_charts_for_aggregate(courses):
+    ALL_DURATIONSTUDIED_TYPES, LINECHART_DATA, BARCHART_DATA = get_charts_data(courses)
+    
+    beg_of_quarter = datetime.strptime("April, 1 2017 00:00:00", DATE_FORMAT).date()
+    LINECHART_DATA_INDEXED = []
+    for elem in LINECHART_DATA:
+        elemdate = datetime.strptime(elem['date'],'%m-%d-%Y').date()
+        print (elemdate - beg_of_quarter).days
+        LINECHART_DATA_INDEXED.append({
+            'index': (elemdate - beg_of_quarter).days,
+            'value': elem['value']
+        })
+
+
+    BARCHART_DATA_INDEXED = []
+    for elem in BARCHART_DATA:
+        print 'hiiii'
+        print elem['date']
+        elemdate = datetime.strptime(elem['date'],'%m-%d-%Y').date()
+        print elemdate
+        print (elemdate - beg_of_quarter).days
+        BARCHART_DATA_INDEXED.append({
+            'index': (elemdate - beg_of_quarter).days,
+            'categories': elem['categories']
+        })
+
+    context = {
+        'ALL_DURATIONSTUDIED_TYPES': ALL_DURATIONSTUDIED_TYPES,
+        "LINECHART_DATA": json.dumps(LINECHART_DATA_INDEXED),
+        "BARCHART_DATA": json.dumps(BARCHART_DATA_INDEXED)
+    }
+
+    html_page = render(os.path.join(os.path.dirname(__file__), 'chart_for_aggregate.j2'), context)
+
+    return html_page
+
+
 def render_charts_to_file(courses):
     html_page = render_charts(courses)
 
@@ -105,7 +142,7 @@ def get_schedule(request):
     s = requests.Session()
     username = json.loads(request.body)['username']
     password = json.loads(request.body)['password']
-    
+
     termCode = '201703'
     termName = 'Spring 2017'
 
@@ -306,10 +343,8 @@ def get_avg_of_all_events_array_for_course(course_identifier):
 
 def course_charts(request):
     course_identifier = request.GET.get('identifier')
-
     avg_of_all_events_array = get_avg_of_all_events_array_for_course(course_identifier)
-    
-    html_page = render_charts([{"events": avg_of_all_events_array}]) # 1 course object
+    html_page = render_charts_for_aggregate([{"events": avg_of_all_events_array}]) # 1 course object
 
     return HttpResponse(html_page)
 
