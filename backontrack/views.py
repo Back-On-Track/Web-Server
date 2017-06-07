@@ -12,7 +12,7 @@ import random
 import string
 import threading
 import Queue
-from charting import get_charts_data
+from charting import get_charts_data, get_charts_data_for_aggregate
 from database_helpers import get_users_collection
 
 DATE_FORMAT = "%B, %d %Y %H:%M:%S"
@@ -89,41 +89,19 @@ def render_charts(courses):
 
     return html_page
 
+
 def render_charts_for_aggregate(courses):
-    ALL_DURATIONSTUDIED_TYPES, LINECHART_DATA, BARCHART_DATA = get_charts_data(courses)
+    ALL_DURATIONSTUDIED_TYPES, LINECHART_DATA, BARCHART_DATA = get_charts_data_for_aggregate(courses)
     
-    beg_of_quarter = datetime.strptime("April, 1 2017 00:00:00", DATE_FORMAT).date()
-    LINECHART_DATA_INDEXED = []
-    for elem in LINECHART_DATA:
-        elemdate = datetime.strptime(elem['date'],'%m-%d-%Y').date()
-        print (elemdate - beg_of_quarter).days
-        LINECHART_DATA_INDEXED.append({
-            'index': (elemdate - beg_of_quarter).days,
-            'value': elem['value']
-        })
-
-
-    BARCHART_DATA_INDEXED = []
-    for elem in BARCHART_DATA:
-        print elem['date']
-        elemdate = datetime.strptime(elem['date'],'%m-%d-%Y').date()
-        print elemdate
-        print (elemdate - beg_of_quarter).days
-        BARCHART_DATA_INDEXED.append({
-            'index': (elemdate - beg_of_quarter).days,
-            'categories': elem['categories']
-        })
-
     context = {
         'ALL_DURATIONSTUDIED_TYPES': ALL_DURATIONSTUDIED_TYPES,
-        "LINECHART_DATA": json.dumps(LINECHART_DATA_INDEXED),
-        "BARCHART_DATA": json.dumps(BARCHART_DATA_INDEXED)
+        "LINECHART_DATA": json.dumps(LINECHART_DATA),
+        "BARCHART_DATA": json.dumps(BARCHART_DATA)
     }
 
     html_page = render(os.path.join(os.path.dirname(__file__), 'chart_for_aggregate.j2'), context)
 
     return html_page
-
 
 def render_charts_to_file(courses):
     html_page = render_charts(courses)
@@ -287,7 +265,10 @@ def export_data(request):
     quarters = json.loads(request.body)["quarters"]
 
     for quarter in quarters:
-        courses += quarter["courses"]
+        coursesInQuarter = quarter["courses"]
+        for courseInQuarter in coursesInQuarter:
+            courseInQuarter["quarterBeginDate"] = quarter["startDate"]
+        courses += coursesInQuarter
 
     userData = {
         "UID": UID,
@@ -315,6 +296,14 @@ def export_for_chart(request):
     return HttpResponse(json.dumps(response))
 
 
+
+def getIndexFromEvent(course, event):
+    eventdate = datetime.strptime(event['date'],'%m-%d-%Y').date()
+    beg_of_quarter = datetime.strptime(course['quarterBeginDate'],'%m-%d-%Y').date()
+    return (eventdate - beg_of_quarter).days
+
+
+
 def get_avg_of_all_events_array_for_course(course_identifier):
     collection = get_users_collection()
     sum_of_all_events_dict = {}
@@ -324,19 +313,21 @@ def get_avg_of_all_events_array_for_course(course_identifier):
         user_courses = user["courses"]
         for course in user_courses:
             if course["identifier"] != course_identifier: continue
-
             for event in course["events"]:
-                if sum_of_all_events_dict.has_key(event["date"]):
-                    sum_of_all_events_dict[event["date"]]["durationStudied"] += event["durationStudied"]
-                    sum_of_all_events_dict[event["date"]]["duration"] += event["duration"]
+                index = getIndexFromEvent(course, event)
+                if sum_of_all_events_dict.has_key(index):
+                    sum_of_all_events_dict[index]["durationStudied"] += event["durationStudied"]
+                    sum_of_all_events_dict[index]["duration"] += event["duration"]
                 else:
-                    sum_of_all_events_dict[event["date"]] = event.copy()
+                    sum_of_all_events_dict[index] = event.copy() # copy whole event
+                    del sum_of_all_events_dict[index]["date"]
+                    sum_of_all_events_dict[index]["index"]=index
 
 
     avg_of_all_events_array = []
     ## divide by length
-    for date in sum_of_all_events_dict.keys():
-        avg_of_all_events_array.append(sum_of_all_events_dict[date])
+    for index in sum_of_all_events_dict.keys():
+        avg_of_all_events_array.append(sum_of_all_events_dict[index])
         avg_of_all_events_array[-1]["duration"] /= length
         avg_of_all_events_array[-1]["durationStudied"] /= length
 
@@ -353,7 +344,7 @@ def isCourseNotEmpty(course_identifier, q):
 def course_charts(request):
     course_identifier = request.GET.get('identifier')
     avg_of_all_events_array = get_avg_of_all_events_array_for_course(course_identifier)
-    html_page = render_charts_for_aggregate([{"events": avg_of_all_events_array}]) # 1 course object
+    html_page = render_charts_for_aggregate([{"events": avg_of_all_events_array}]) # (courses object = [1 course object] )
 
     return HttpResponse(html_page)
 

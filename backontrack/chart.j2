@@ -177,13 +177,18 @@
         var svg = d3v2.select("mylinechart").append("svg:svg").attr("width", width + p * 2).attr("height", height + p * 2).append("svg:g").attr("transform", "translate(" + p + "," + p + ")");
         var dataset = {{ LINECHART_DATA }};
         var padding = 50;
-
+        var convertStringToDate = function(a) {
+            month=a.substring(0,2)
+            day=a.substring(3,5)
+            year=a.substring(6,10)
+            return new Date(parseInt(year),parseInt(month)-1,parseInt(day),0,0,0,0);
+        }
         var minDate = d3v2.min(dataset, function(d) {
-            return new Date(d.date);
+            return convertStringToDate(d.date);
         });
         minDate.setDate(minDate.getDate() - 1);
         var maxDate = d3v2.max(dataset, function(d) {
-            return new Date(d.date);
+            return convertStringToDate(d.date);
         });
         var xScale = d3v2.time.scale().domain([minDate, maxDate]).range([padding, width - padding]);
         var yScale = d3v2.scale.linear().domain([0, d3v2.max(dataset, function(d) {
@@ -199,13 +204,13 @@
         }).tickSize(5, 5, 0).ticks(5);
         svg.append("g").attr("class", "axis y-axis").attr("transform", "translate(" + padding + ",0)").call(yAxis);
         var line = d3v2.svg.line().x(function(d) {
-            return xScale(new Date(d.date));
+            return xScale(convertStringToDate(d.date));
         }).y(function(d) {
             return yScale(d.value);
         });
         svg.append("svg:path").attr("d", line(dataset));
         svg.selectAll("circle").data(dataset).enter().append("circle").attr("class", "data-point").attr("cx", function(d) {
-            return xScale(new Date(d.date));
+            return xScale(convertStringToDate(d.date));
         }).attr("cy", function(d) {
             return yScale(d.value);
         }).attr("r", 5);
