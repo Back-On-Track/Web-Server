@@ -10,6 +10,8 @@ import re
 import json
 import random
 import string
+import threading
+import Queue
 from charting import get_charts_data
 from database_helpers import get_users_collection
 
@@ -103,7 +105,6 @@ def render_charts_for_aggregate(courses):
 
     BARCHART_DATA_INDEXED = []
     for elem in BARCHART_DATA:
-        print 'hiiii'
         print elem['date']
         elemdate = datetime.strptime(elem['date'],'%m-%d-%Y').date()
         print elemdate
@@ -341,6 +342,14 @@ def get_avg_of_all_events_array_for_course(course_identifier):
 
     return avg_of_all_events_array
 
+def isCourseNotEmpty(course_identifier, q):
+    nonEmptyCourseIdentifiers = []
+    avg_of_all_events_array = get_avg_of_all_events_array_for_course(course_identifier)
+    totalDurationStudied = sum([x["durationStudied"] for x in avg_of_all_events_array])
+    nonEmptyCourseIdentifiers += [course_identifier] if totalDurationStudied != 0 else []
+    q.put(nonEmptyCourseIdentifiers)
+    return nonEmptyCourseIdentifiers
+
 def course_charts(request):
     course_identifier = request.GET.get('identifier')
     avg_of_all_events_array = get_avg_of_all_events_array_for_course(course_identifier)
@@ -356,13 +365,19 @@ def index(request):
     for user in users_cursor:
         for course in user["courses"]:
             all_identifiers[course["identifier"]] = True
-
+    q = Queue.Queue()
     # filter out the courses that dont have any events
-    nonEmptyCourseIdentifiers = []
+
+    threads = []
     for course_identifier in all_identifiers.keys():
-        avg_of_all_events_array = get_avg_of_all_events_array_for_course(course_identifier)
-        totalDurationStudied = sum([x["durationStudied"] for x in avg_of_all_events_array])
-        nonEmptyCourseIdentifiers += [course_identifier] if totalDurationStudied != 0 else []
+        threads.append(threading.Thread(target=isCourseNotEmpty, args=[course_identifier, q]))
+        threads[-1].start()
+
+
+    nonEmptyCourseIdentifiers = []
+    for thread in threads:
+        thread.join()
+        nonEmptyCourseIdentifiers += q.get()
 
     context = {
         'IDENTIFIERS': nonEmptyCourseIdentifiers,
