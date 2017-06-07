@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 
 def get_piechart_data(courses):
     all_durationStudied_types = {
